@@ -1,5 +1,5 @@
 import streamlit as st
-import PyPDF2
+import PyPDF
 import re
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
