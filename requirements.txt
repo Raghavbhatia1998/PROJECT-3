@@ -1,0 +1,6 @@
+streamlit
+pypdf
+nltk
+wordcloud
+matplotlib
+pandas
