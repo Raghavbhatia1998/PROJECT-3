@@ -36,41 +36,61 @@ if uploaded_file and keywords_input:
     for page in reader.pages:
         full_text += page.extract_text() or ""
 
-    # Split into paragraphs
-    paragraphs = full_text.split("\n\n")
+    # --------------------------------
+    # Split PDF text into sentences (no need for NLTK)
+    # --------------------------------
+    sentences = re.split(r'(?<=[.!?])\s+', full_text)
 
     # Clean keywords
     keywords = [k.strip().lower() for k in keywords_input.split(",") if k.strip()]
 
     # --------------------------------
-    # Extract paragraphs containing keywords
+    # Extract ONLY sentences that contain ANY keyword
     # --------------------------------
-    matched_paragraphs = []
-    for para in paragraphs:
-        lower_para = para.lower()
-        if any(k in lower_para for k in keywords):
-            matched_paragraphs.append(para.strip())
+    matched_sentences = []
+    for s in sentences:
+        ls = s.lower()
+        if any(k in ls for k in keywords):
+            matched_sentences.append(s)
 
     # --------------------------------
-    # Display paragraphs
+    # Group consecutive matched sentences into paragraphs
+    # --------------------------------
+    matched_paragraphs = []
+    temp_para = ""
+
+    for s in sentences:
+        ls = s.lower()
+        if any(k in ls for k in keywords):
+            temp_para += s + " "
+        else:
+            if temp_para:
+                matched_paragraphs.append(temp_para.strip())
+                temp_para = ""
+
+    if temp_para:
+        matched_paragraphs.append(temp_para.strip())
+
+    # --------------------------------
+    # Display extracted paragraphs
     # --------------------------------
     st.subheader("📌 Extracted Paragraphs Containing Keywords")
 
     if len(matched_paragraphs) == 0:
-        st.warning("No paragraphs found containing those keywords.")
+        st.warning("No paragraphs found containing the given keywords.")
     else:
         for i, p in enumerate(matched_paragraphs, start=1):
             st.markdown(f"### Paragraph {i}")
             st.write(p)
 
     # --------------------------------
-    # WordCloud + Frequent Words
+    # WordCloud + Frequent Words (only from keyword paragraphs)
     # --------------------------------
     if len(matched_paragraphs) > 0:
 
         combined_text = " ".join(matched_paragraphs)
 
-        # Regex tokenization (no NLTK required)
+        # Regex tokenizer (no nltk download required)
         tokens = re.findall(r"\b[a-zA-Z]{3,}\b", combined_text.lower())
 
         # Remove stopwords
@@ -78,7 +98,7 @@ if uploaded_file and keywords_input:
         tokens = [w for w in tokens if w not in stop]
 
         if len(tokens) == 0:
-            st.error("Not enough useful words to generate WordCloud.")
+            st.error("Not enough meaningful words to generate WordCloud.")
         else:
             # WordCloud
             st.subheader("☁️ WordCloud from Extracted Paragraphs")
@@ -90,7 +110,7 @@ if uploaded_file and keywords_input:
             plt.axis("off")
             st.pyplot(fig)
 
-            # Frequent words
+            # Frequent words table
             st.subheader("🔠 Top 20 Frequent Words")
             freq = Counter(tokens).most_common(20)
             freq_df = pd.DataFrame(freq, columns=["Word", "Frequency"])
