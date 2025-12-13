@@ -86,10 +86,33 @@ if uploaded_file and keywords_input:
         # -----------------------------
         # Frequent word table
         # -----------------------------
-        st.subheader("🔠 Top 20 Frequent Words from Extracted Paragraphs")
-        freq = Counter(tokens).most_common(20)
-        freq_df = pd.DataFrame(freq, columns=["Word", "Frequency"])
-        st.table(freq_df)
+        st.subheader("☁️ WordCloud from Extracted Paragraphs")
 
+combined_text = " ".join(matched_paragraphs)
+
+# Regex-based tokenization (NO nltk needed)
+import re
+tokens = re.findall(r"\b[a-zA-Z]{3,}\b", combined_text.lower())
+
+# Remove stopwords
+from nltk.corpus import stopwords
+stop = set(stopwords.words("english"))
+tokens = [w for w in tokens if w not in stop]
+
+if len(tokens) == 0:
+    st.error("No valid words found for WordCloud.")
 else:
-    st.info("Upload PDF and enter keywords to begin.")
+    wc = WordCloud(width=1000, height=500, background_color="white")
+    image = wc.generate(" ".join(tokens))
+
+    fig = plt.figure(figsize=(12, 5))
+    plt.imshow(image, interpolation="bilinear")
+    plt.axis("off")
+    st.pyplot(fig)
+
+    # Frequent words
+    from collections import Counter
+    freq = Counter(tokens).most_common(20)
+    freq_df = pd.DataFrame(freq, columns=["Word", "Frequency"])
+    st.subheader("🔠 Top 20 Frequent Words")
+    st.table(freq_df)
