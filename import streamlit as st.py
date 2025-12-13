@@ -1,31 +1,36 @@
 import streamlit as st
 import pypdf
 import re
-import nltk
-from nltk.tokenize import sent_tokenize, word_tokenize
-from nltk.corpus import stopwords
-from wordcloud import WordCloud
-import matplotlib.pyplot as plt
-from collections import Counter
 import pandas as pd
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+from collections import Counter
+from nltk.corpus import stopwords
+import nltk
 
-nltk.download("punkt")
+# Load stopwords
 nltk.download("stopwords")
 
-st.title("🔎 Keyword Paragraph Extractor + WordCloud Generator")
+st.title("🔎 Keyword-Based Paragraph Extractor + WordCloud")
 
-# Upload PDF
-uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
+# ------------------------------
+# PDF Upload
+# ------------------------------
+uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
 
+# ------------------------------
+# Keyword Input
+# ------------------------------
 keywords_input = st.text_input(
     "Enter keywords (comma separated):",
-    placeholder="example: profit, revenue, growth"
+    placeholder="Example: profit, revenue, growth"
 )
 
 if uploaded_file and keywords_input:
-    # -----------------------------
-    # Extract PDF Text
-    # -----------------------------
+
+    # --------------------------------
+    # Extract PDF text
+    # --------------------------------
     reader = pypdf.PdfReader(uploaded_file)
     full_text = ""
     for page in reader.pages:
@@ -37,44 +42,46 @@ if uploaded_file and keywords_input:
     # Clean keywords
     keywords = [k.strip().lower() for k in keywords_input.split(",") if k.strip()]
 
-    # -----------------------------
-    # Extract paragraphs containing ANY keyword
-    # -----------------------------
+    # --------------------------------
+    # Extract paragraphs containing keywords
+    # --------------------------------
     matched_paragraphs = []
     for para in paragraphs:
         lower_para = para.lower()
         if any(k in lower_para for k in keywords):
             matched_paragraphs.append(para.strip())
 
-    # -----------------------------
-    # Display Results
-    # -----------------------------
+    # --------------------------------
+    # Display paragraphs
+    # --------------------------------
     st.subheader("📌 Extracted Paragraphs Containing Keywords")
+
     if len(matched_paragraphs) == 0:
-        st.warning("No paragraphs found containing the given keywords.")
+        st.warning("No paragraphs found containing those keywords.")
     else:
         for i, p in enumerate(matched_paragraphs, start=1):
             st.markdown(f"### Paragraph {i}")
             st.write(p)
 
-    # -----------------------------
-    # Generate WordCloud from matched paragraphs
-    # -----------------------------
+    # --------------------------------
+    # WordCloud + Frequent Words
+    # --------------------------------
     if len(matched_paragraphs) > 0:
-        st.subheader("☁️ WordCloud from Extracted Paragraphs")
 
         combined_text = " ".join(matched_paragraphs)
 
-        # Clean + tokenize
-        combined_text = re.sub(r"[^A-Za-z\s]", " ", combined_text)
-        tokens = word_tokenize(combined_text.lower())
+        # Regex tokenization (no NLTK required)
+        tokens = re.findall(r"\b[a-zA-Z]{3,}\b", combined_text.lower())
 
+        # Remove stopwords
         stop = set(stopwords.words("english"))
-        tokens = [w for w in tokens if w not in stop and len(w) > 2]
+        tokens = [w for w in tokens if w not in stop]
 
         if len(tokens) == 0:
-            st.error("No valid words found for WordCloud.")
+            st.error("Not enough useful words to generate WordCloud.")
         else:
+            # WordCloud
+            st.subheader("☁️ WordCloud from Extracted Paragraphs")
             wc = WordCloud(width=1000, height=500, background_color="white")
             image = wc.generate(" ".join(tokens))
 
@@ -83,36 +90,11 @@ if uploaded_file and keywords_input:
             plt.axis("off")
             st.pyplot(fig)
 
-        # -----------------------------
-        # Frequent word table
-        # -----------------------------
-        st.subheader("☁️ WordCloud from Extracted Paragraphs")
+            # Frequent words
+            st.subheader("🔠 Top 20 Frequent Words")
+            freq = Counter(tokens).most_common(20)
+            freq_df = pd.DataFrame(freq, columns=["Word", "Frequency"])
+            st.table(freq_df)
 
-combined_text = " ".join(matched_paragraphs)
-
-# Regex-based tokenization (NO nltk needed)
-import re
-tokens = re.findall(r"\b[a-zA-Z]{3,}\b", combined_text.lower())
-
-# Remove stopwords
-from nltk.corpus import stopwords
-stop = set(stopwords.words("english"))
-tokens = [w for w in tokens if w not in stop]
-
-if len(tokens) == 0:
-    st.error("No valid words found for WordCloud.")
 else:
-    wc = WordCloud(width=1000, height=500, background_color="white")
-    image = wc.generate(" ".join(tokens))
-
-    fig = plt.figure(figsize=(12, 5))
-    plt.imshow(image, interpolation="bilinear")
-    plt.axis("off")
-    st.pyplot(fig)
-
-    # Frequent words
-    from collections import Counter
-    freq = Counter(tokens).most_common(20)
-    freq_df = pd.DataFrame(freq, columns=["Word", "Frequency"])
-    st.subheader("🔠 Top 20 Frequent Words")
-    st.table(freq_df)
+    st.info("Upload a PDF and enter keywords to begin.")
